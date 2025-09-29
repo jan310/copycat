@@ -25,7 +25,7 @@ public class CopyCat {
             return;
         }
 
-        SyncPlan syncPlan = SyncEngine.analyze(srcDir, targetDir);
+        SyncPlan syncPlan = SyncEngine.createSyncPlan(srcDir, targetDir);
 
         System.out.println("The following directories will be created:");
         syncPlan.mkDirTasks().forEach(t -> System.out.println(" - " + t));

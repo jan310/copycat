@@ -11,7 +11,7 @@ import java.util.List;
 
 public class SyncEngine {
 
-    public static SyncPlan analyze(Path sourceDir, Path targetDir) throws IOException {
+    public static SyncPlan createSyncPlan(Path sourceDir, Path targetDir) throws IOException {
         List<SyncTask> mkDirTasks = new ArrayList<>();
         List<SyncTask> fileTasks = new ArrayList<>();
         List<SyncTask> delDirTasks = new ArrayList<>();
@@ -47,17 +47,6 @@ public class SyncEngine {
 
         Files.walkFileTree(targetDir, new SimpleFileVisitor<>() {
             @Override
-            public FileVisitResult preVisitDirectory(Path targetSubDir, BasicFileAttributes attrs) {
-                Path sourceSubDir = sourceDir.resolve(targetDir.relativize(targetSubDir));
-
-                if (!Files.exists(sourceSubDir)) {
-                    delDirTasks.add(new SyncTask(ActionType.DEL_DIR, null, targetSubDir));
-                }
-
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
             public FileVisitResult visitFile(Path targetFile, BasicFileAttributes targetFileAttrs) {
                 Path sourceFile = sourceDir.resolve(targetDir.relativize(targetFile));
 
@@ -67,9 +56,18 @@ public class SyncEngine {
 
                 return FileVisitResult.CONTINUE;
             }
-        });
 
-        delDirTasks.sort((a, b) -> Integer.compare(b.targetPath().getNameCount(), a.targetPath().getNameCount()));
+            @Override
+            public FileVisitResult postVisitDirectory(Path targetSubDir, IOException exc) {
+                Path sourceSubDir = sourceDir.resolve(targetDir.relativize(targetSubDir));
+
+                if (!Files.exists(sourceSubDir)) {
+                    delDirTasks.add(new SyncTask(ActionType.DEL_DIR, null, targetSubDir));
+                }
+
+                return FileVisitResult.CONTINUE;
+            }
+        });
 
         return new SyncPlan(mkDirTasks, fileTasks, delDirTasks);
     }
