@@ -1,9 +1,10 @@
 package jan.ondra;
 
+import java.nio.file.Path;
 import java.util.List;
 
 public record SyncPlan(
-    List<SyncTask> mkDirTasks,
-    List<SyncTask> fileTasks,
-    List<SyncTask> delDirTasks
+    List<Path> directoriesToCreate,
+    List<FileSyncTask> fileSyncTasks,
+    List<Path> directoriesToDelete
 ) {}

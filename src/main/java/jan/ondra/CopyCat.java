@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Scanner;
 
 public class CopyCat {
 
@@ -25,19 +26,31 @@ public class CopyCat {
             return;
         }
 
-        SyncPlan syncPlan = SyncEngine.createSyncPlan(srcDir, targetDir);
+        SyncEngine syncEngine = new SyncEngine();
 
-        System.out.println("The following directories will be created:");
-        syncPlan.mkDirTasks().forEach(t -> System.out.println(" - " + t));
-        System.out.println();
+        SyncPlan syncPlan = syncEngine.createSyncPlan(srcDir, targetDir);
 
-        System.out.println("The following files will be copied/updated/deleted:");
-        syncPlan.fileTasks().forEach(t -> System.out.println(" - " + t));
-        System.out.println();
+        System.out.println("The following actions are planned:");
 
-        System.out.println("The following directories will be deleted:");
-        syncPlan.delDirTasks().forEach(t -> System.out.println(" - " + t));
-        System.out.println();
+        syncPlan.directoriesToCreate().forEach(path -> System.out.println("CREATE DIRECTORY: " + path));
+        syncPlan.fileSyncTasks().forEach(task -> {
+            switch (task.type()) {
+                case COPY -> System.out.println("COPY FILE: " + task.sourcePath() + " -> " + task.targetPath());
+                case UPDATE -> System.out.println("UPDATE FILE: " + task.sourcePath() + " -> " + task.targetPath());
+                case DELETE -> System.out.println("DELETE FILE: " + task.targetPath());
+            }
+        });
+        syncPlan.directoriesToDelete().forEach(path -> System.out.println("DELETE DIRECTORY: " + path));
+
+        System.out.print("Continue? (y/n): ");
+        String input = new Scanner(System.in).nextLine().trim().toLowerCase();
+
+        if (input.equals("y")) {
+            syncEngine.executeSyncPlan(syncPlan);
+            System.out.println("Synchronization complete");
+        } else {
+            System.out.println("Synchronization aborted");
+        }
     }
 
 }
