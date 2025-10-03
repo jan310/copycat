@@ -5,6 +5,6 @@ import java.util.List;
 
 public record SyncPlan(
     List<Path> directoriesToCreate,
-    List<FileSyncTask> fileSyncTasks,
+    List<SyncTask> filesToCopyUpdateDelete,
     List<Path> directoriesToDelete
 ) {}
