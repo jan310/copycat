@@ -9,13 +9,16 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 
+import static jan.ondra.ActionType.COPY;
+import static jan.ondra.ActionType.DELETE;
+import static jan.ondra.ActionType.UPDATE;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 public class SyncEngine {
 
     public SyncPlan createSyncPlan(Path sourceDir, Path targetDir) throws IOException {
         List<Path> directoriesToCreate = new ArrayList<>();
-        List<FileSyncTask> fileSyncTasks = new ArrayList<>();
+        List<SyncTask> filesToCopyUpdateDelete = new ArrayList<>();
         List<Path> directoriesToDelete = new ArrayList<>();
 
         Files.walkFileTree(sourceDir, new SimpleFileVisitor<>() {
@@ -39,12 +42,12 @@ public class SyncEngine {
                 Path targetFile = targetDir.resolve(sourceDir.relativize(sourceFile));
 
                 if (!Files.exists(targetFile)) {
-                    fileSyncTasks.add(new FileSyncTask(ActionType.COPY, sourceFile, targetFile));
+                    filesToCopyUpdateDelete.add(new SyncTask(COPY, sourceFile, targetFile));
                 } else if (
                     sourceFileAttrs.size() != Files.size(targetFile) ||
                     sourceFileAttrs.lastModifiedTime().toMillis() > Files.getLastModifiedTime(targetFile).toMillis()
                 ) {
-                    fileSyncTasks.add(new FileSyncTask(ActionType.UPDATE, sourceFile, targetFile));
+                    filesToCopyUpdateDelete.add(new SyncTask(UPDATE, sourceFile, targetFile));
                 }
 
                 return FileVisitResult.CONTINUE;
@@ -54,10 +57,14 @@ public class SyncEngine {
         Files.walkFileTree(targetDir, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult visitFile(Path targetFile, BasicFileAttributes targetFileAttrs) {
+                if (targetFile.getFileName().toString().equals(".DS_Store")) {
+                    return FileVisitResult.CONTINUE;
+                }
+
                 Path sourceFile = sourceDir.resolve(targetDir.relativize(targetFile));
 
                 if (!Files.exists(sourceFile)) {
-                    fileSyncTasks.add(new FileSyncTask(ActionType.DELETE, null, targetFile));
+                    filesToCopyUpdateDelete.add(new SyncTask(DELETE, null, targetFile));
                 }
 
                 return FileVisitResult.CONTINUE;
@@ -75,35 +82,24 @@ public class SyncEngine {
             }
         });
 
-        return new SyncPlan(directoriesToCreate, fileSyncTasks, directoriesToDelete);
+        return new SyncPlan(directoriesToCreate, filesToCopyUpdateDelete, directoriesToDelete);
     }
 
     public void executeSyncPlan(SyncPlan syncPlan) throws IOException {
         for (Path path : syncPlan.directoriesToCreate()) {
             Files.createDirectory(path);
-            System.out.println("CREATED DIRECTORY: " + path);
         }
 
-        for (FileSyncTask task : syncPlan.fileSyncTasks()) {
+        for (SyncTask task : syncPlan.filesToCopyUpdateDelete()) {
             switch (task.type()) {
-                case COPY -> {
-                    Files.copy(task.sourcePath(), task.targetPath());
-                    System.out.println("COPIED FILE: " + task.sourcePath() + " -> " + task.targetPath());
-                }
-                case UPDATE -> {
-                    Files.copy(task.sourcePath(), task.targetPath(), REPLACE_EXISTING);
-                    System.out.println("UPDATED FILE: " + task.sourcePath() + " -> " + task.targetPath());
-                }
-                case DELETE -> {
-                    Files.delete(task.targetPath());
-                    System.out.println("DELETED FILE: " + task.targetPath());
-                }
+                case COPY -> Files.copy(task.sourcePath(), task.targetPath());
+                case UPDATE -> Files.copy(task.sourcePath(), task.targetPath(), REPLACE_EXISTING);
+                case DELETE -> Files.delete(task.targetPath());
             }
         }
 
         for (Path path : syncPlan.directoriesToDelete()) {
             Files.delete(path);
-            System.out.println("DELETED DIRECTORY: " + path);
         }
     }
 

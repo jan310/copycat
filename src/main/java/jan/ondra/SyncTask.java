@@ -2,13 +2,7 @@ package jan.ondra;
 
 import java.nio.file.Path;
 
-enum ActionType {
-    COPY,
-    UPDATE,
-    DELETE
-}
-
-public record FileSyncTask(
+public record SyncTask(
     ActionType type,
     Path sourcePath,
     Path targetPath
